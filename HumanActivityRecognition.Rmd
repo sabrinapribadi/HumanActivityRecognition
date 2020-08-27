@@ -1,0 +1,362 @@
+---
+title: "Human Activity Recognition (HAR)"
+author: "Sabrina"
+date: "8/23/2020"
+output:
+  html_document:
+    df_print: paged
+  prettydoc::html_pretty:
+    theme: hpstr
+    highlight: github
+---
+
+
+## **Introduction**
+Human-Centered Computing (HCC) is an emerging research field based on the scientific study of cognition in human behaviour and integrate users and their social context with computer systems. HCC especially studies on understanding the differences between perceptual-motor, cognitive, and social aspects. Human Activity Recognition (HAR) aims to identify the actions that come from human behaviour. Anguita et al. [1] has conducted experiments in sensing human body motion from actions carried out by a person while using a smartphone. The results released as a public domain dataset for Human Activity Recognition using Smartphones[1]. The HAR dataset built from the recordings of 30 subjects doing Activities of Daily Living (ADL) while carrying a waist-mounted smartphone with embedded inertial sensors.
+
+## **HAR Dataset**
+
+
+The experiments have been carried out with a group of 30 subjects with ages ranging from 19 to 48 years. Each subject was assigned to accomplish six Activities of Daily Living (ADL), such as `WALKING`, `WALKING_UPSTAIRS`, `WALKING_DOWNSTAIRS`, `SITTING`, `STANDING`, and `LAYING` while wearing a waist-mounted Samsung Galaxy S II smartphone. The embedded accelerometer and gyroscope on the phone is used to capture 3-axial linear acceleration and 3-axial angular velocity at a constant rate of 50Hz. The experiments have been video-recorded to label the data manually. The obtained dataset would be randomly divided into two sets, where 70% of the experimental data were selected for generating training data and 30% for test data.
+
+
+The sensor signals of accelerometer and gyroscope were pre-processed by applying noise filters and then sampled in fixed-width sliding windows of 2.56 sec and 50% overlap (128 readings/window). The sensor acceleration signal which has gravitational and body motion components were separated using a Butterworth low-pass filter into body acceleration and gravity. The gravitational force is assumed to have only low-frequency components; therefore a filter with 0.3 Hz cutoff frequency was used. From each window, a vector of features was obtained by calculating variables from the time and frequency domain. There is a total of 17 signals were obtained by applying the signal processing and a total of 561 features were extracted to describe each activity window. 
+
+The HAR dataset is available in [UCI Machine Learning Repository](https://archive.ics.uci.edu/ml/datasets/Human+Activity+Recognition+Using+Smartphones).
+
+## **Load Library**
+
+Libraries for analyzing the dataset:
+```{r}
+library(ggplot2)
+library(reshape2)
+```
+
+
+## **Load Dataset**
+
+The dataset is provided in `txt` format. I used `read.table` function to load the dataset.
+
+First, load the list the activity labels and features of these experiments.
+
+```{r}
+# Data Input: Activity labels
+adl.labels <- read.table("UCI HAR Dataset/activity_labels.txt", sep = "")
+activityLabels <- as.character(adl.labels$V2)
+
+# Data Input: Feature List
+feature.lists <- read.table("UCI HAR Dataset/features.txt", sep = "")
+attributeNames <- feature.lists$V2
+```
+
+The activity labels consist of six Activities of Daily Living (ADL):
+```{r echo=FALSE}
+print (activityLabels)
+```
+Here are 17 main signals were used to estimate variables of the features :
+
+1. tBodyAcc-XYZ
+2. tGravityAcc-XYZ
+3. tBodyAccJerk-XYZ
+4. tBodyGyro-XYZ
+5. tBodyGyroJerk-XYZ
+6. tBodyAccMag
+7. tGravityAccMag
+8. tBodyAccJerkMag
+9. tBodyGyroMag
+10. tBodyGyroJerkMag
+11. fBodyAcc-XYZ
+12. fBodyAccJerk-XYZ
+13. fBodyGyro-XYZ
+14. fBodyAccMag
+15. fBodyAccJerkMag
+16. fBodyGyroMag
+17. fBodyGyroJerkMag
+
+For each main signal will have a set of these variables :
+
+- mean(): Mean value
+- std(): Standard deviation
+- mad(): Median absolute deviation 
+- max(): Largest value in array
+- min(): Smallest value in array
+- sma(): Signal magnitude area
+- energy(): Energy measure. Sum of the squares divided by the number of values. 
+- iqr(): Interquartile range 
+- entropy(): Signal entropy
+- arCoeff(): Autorregresion coefficients with Burg order equal to 4
+- correlation(): correlation coefficient between two signals
+- maxInds(): index of the frequency component with largest magnitude
+- meanFreq(): Weighted average of the frequency components to obtain a mean frequency
+- skewness(): skewness of the frequency domain signal 
+- kurtosis(): kurtosis of the frequency domain signal 
+- bandsEnergy(): Energy of a frequency interval within the 64 bins of the FFT of each window.
+- angle(): Angle between to vectors.
+
+There are also additional vectors on the angle() variable:
+- gravityMean
+- tBodyAccMean
+- tBodyAccJerkMean
+- tBodyGyroMean
+- tBodyGyroJerkMean
+
+So, the total features:
+
+```{r echo = FALSE}
+length(attributeNames)
+```
+
+#### **Training Set**
+
+Load the training set, its labels, and its corresponding subject.
+
+```{r}
+# Data Input: Training set
+Xtrain <- read.table("UCI HAR Dataset/train/X_train.txt", sep = "") 
+
+# named each column in xtrain with its associated feature names
+names(Xtrain) <- attributeNames
+```
+
+```{r}
+# Data Input: Training set Labels
+Ytrain <- read.table("UCI HAR Dataset/train/y_train.txt", sep = "")
+
+# renamed the Ytrain column with "Activity"
+names(Ytrain) <- "Activity"
+
+# Convert it as a factor data type.
+Ytrain$Activity <- as.factor(Ytrain$Activity)
+
+# linked each level in 'Ytrain$Activity' with its associated activity labels.
+levels(Ytrain$Activity) <- activityLabels
+```
+
+```{r}
+# Data Input: Subject who performed the activity for each window sample
+trainSubjects <- read.table("UCI HAR Dataset/train/subject_train.txt", sep = "")
+
+# renamed the 'trainSubjects' column with "subject"
+names(trainSubjects) <- "subject"
+
+# Convert it as a factor data type.
+trainSubjects$subject <- as.factor(trainSubjects$subject)
+```
+
+Now, let's paired the training set to its activity labels and the subject who carried out the experiment.
+
+```{r}
+# combines the subjects, the activity labels, and the features into one data frame
+train_set <- cbind(trainSubjects, Ytrain, Xtrain)
+```
+
+
+#### **Test Set**
+
+Load the test set, its labels, and its corresponding subject.
+
+```{r}
+# Data Input: Test set
+Xtest <- read.table("UCI HAR Dataset/test/X_test.txt", sep = "")
+
+# named each column in xtest with its associated feature names
+names(Xtest) <- attributeNames
+```
+
+```{r}
+# Data Input: Test set Labels
+Ytest <- read.table("UCI HAR Dataset/test/y_test.txt", sep = "")
+
+# renamed the Ytest column with "Activity"
+names(Ytest) <- "Activity"
+
+# Convert it as a factor data type.
+Ytest$Activity <- as.factor(Ytest$Activity)
+
+# linked each level in 'Ytest$Activity' with its associated activity labels.
+levels(Ytest$Activity) <- activityLabels
+```
+
+```{r}
+# Data Input: Subject who performed the activity for each window sample
+testSubjects <- read.table("UCI HAR Dataset/test/subject_test.txt", sep = "")
+
+# renamed the 'testSubjects' column with "subject"
+names(testSubjects) <- "subject"
+
+# Convert it as a factor data type.
+testSubjects$subject <- as.factor(testSubjects$subject)
+```
+
+Then, paired the test set to its activity labels and the subject who carried out the experiment.
+
+```{r}
+# combines the subjects, the activity labels, and the features into one data frame
+test_set <- cbind(testSubjects, Ytest, Xtest)
+```
+
+
+#### **Missing Data Diagnosis**
+
+NA values can cause difficulties. It can be detected in several features of the `train set` and `test set`.
+
+```{r}
+range(colSums(is.na(train_set)))
+```
+There are no rows with NA values in the `train set`.
+
+
+```{r}
+range(colSums(is.na(test_set)))
+```
+There are no rows with NA values in the `test set`.
+
+
+
+## **Summary of Training and Test Set**
+
+Insert a new column named `Partition` on each set to distinguish between two sets.
+
+```{r}
+# Insert `Partition` column into `train` data frame, then assigned value="Train"
+train_set$Partition <- "Train"
+
+# Insert `Partition` column into `test` data frame, then assigned value="Test"
+test_set$Partition <- "Test"
+```
+
+We need one big data frame consists of `train_set` and `test set`.
+
+```{r}
+# Combine the `train` set and `test` set into one data frame by rows
+alldf <- rbind(train_set,test_set)
+
+# Convert it as a factor data type.
+alldf$Partition <- as.factor(alldf$Partition)
+```
+
+After combining the `train set` and `test set`, the dimension of entire dataset:
+
+```{r echo = FALSE}
+dim(alldf)
+```
+
+#### **Number of observations**
+
+Summary of subject variables in the `train` set.
+
+```{r echo = FALSE}
+summary(train_set$subject)
+```
+
+Summary of subject variables in the `test` set.
+
+```{r echo = FALSE}
+summary(test_set$subject)
+```
+
+Let's plot the distribution of the **subject variables** in the `train` set and the `test` set.
+
+```{r}
+colnames(alldf) <- make.unique(names(alldf))
+qplot(data = alldf, x = subject, fill = Partition, 
+      main = "The Distribution of Subject", xlab = "Subject", ylab = "Frequency")
+
+```
+
+##### **Insight(s):**
+
+1. Total subject is 30 subjects and randomly divided into 70% for `Train` set and 30% for `Test` set.
+2. There are **21** subjects in the `Train` set
+2. There are **9** subjects in the `Test` set
+
+
+#### **Activities of Daily Living (ADL)**
+
+There are six Activities of Daily Living (ADL), such as `WALKING`, `WALKING_UPSTAIRS`, `WALKING_DOWNSTAIRS`, `SITTING`, `STANDING`, and `LAYING`. Let's find out the distribution of ADL on each subject.
+
+
+```{r}
+colnames(alldf) <- make.unique(names(alldf))
+qplot(data = alldf , x = subject, fill = Activity, 
+      main = "Activities of Daily Living Distribution", xlab = "Subject", ylab = "Frequency")
+
+```
+
+##### **Insight(s):**
+
+1. The Experiment is measured fairly evenly across experimental subjects and activity types.
+
+
+## **The shortest time on `STANDING` and `SITTING`**
+
+The recognition of body transitions such as stand-to-sit required short time spans (in the order of seconds).
+We will analyze the shortest time on `STANDING` and `SITTING` in different axis from the data taken by Accelarator only.
+
+#### **Step 1: Subsetting**
+
+```{r}
+# Subset only MIN features of the Body Accelerator
+alldf_min <- subset(alldf,
+                    select = c("subject","Activity", "tBodyAcc-min()-X", "tBodyAcc-min()-Y", "tBodyAcc-min()-Z"))
+
+# subset only for STANDING and SITTING activities
+alldf.stand.sit <- alldf_min[alldf_min$Activity == "STANDING" | alldf_min$Activity == "SITTING",]
+```
+
+```{r}
+# Data inspection
+str(alldf.stand.sit)
+```
+
+#### **Step 2: Explatory Data**
+
+```{r}
+# Rename columns to its corresponding axis
+names(alldf.stand.sit)[names(alldf.stand.sit) == "tBodyAcc-min()-X"] <- "X.Axis"
+names(alldf.stand.sit)[names(alldf.stand.sit) == "tBodyAcc-min()-Y"] <- "Y.Axis"
+names(alldf.stand.sit)[names(alldf.stand.sit) == "tBodyAcc-min()-Z"] <- "Z.Axis"
+
+# Melt the columns of axises into one` column
+melt_min <- melt(alldf.stand.sit, id.vars=c("subject", "Activity"))
+
+# Rename the `variable` column to `axis` column
+names(melt_min)[names(melt_min) == "variable"] <- "Axis"
+
+# Sort data : ASCENDING
+temp <- melt_min[order(melt_min$value), ]
+```
+
+#### **Step 3: Data Visualization**
+
+```{r}
+# Find The subject and its activity label that has the shortest time in every axis. 
+bestX <- head(temp[temp$Axis == "X.Axis", ], 1)
+bestY <- head(temp[temp$Axis == "Y.Axis", ], 1)
+bestZ <- head(temp[temp$Axis == "Z.Axis", ], 1)
+
+# combine
+comb.best <- rbind(bestX, bestY, bestZ)
+comb.best
+```
+
+
+##### **Insight(s):**
+
+1. Subject **10** has the shortest time on doing both, `STANDING` and `SITTING` activities
+
+
+#### **References**
+
+1.  Davide Anguita, Alessandro Ghio, Luca Oneto, Xavier Parra and Jorge L. Reyes-Ortiz. A Public Domain Dataset for Human Activity Recognition Using Smartphones. 21th European Symposium on Artificial Neural Networks, Computational Intelligence and Machine Learning, ESANN 2013. Bruges, Belgium 24-26 April 2013.
+
+
+
+
+
+
+
+
+
+
+
